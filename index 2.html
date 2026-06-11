@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#7cb342">
+<title>こんだてBOX｜自動献立 &amp; 買い物リスト</title>
+<style>
+  :root{
+    --green:#7cb342; --green-d:#558b2f; --green-l:#f1f8e9;
+    --orange:#ff8f00; --red:#e53935; --ink:#33312e; --sub:#8a877f;
+    --card:#ffffff; --bg:#f6f5f0; --line:#e8e6df;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:15px;line-height:1.55;
+    padding-bottom:calc(76px + env(safe-area-inset-bottom));}
+  header{background:linear-gradient(135deg,#8bc34a,#558b2f);color:#fff;
+    padding:calc(14px + env(safe-area-inset-top)) 18px 14px;position:sticky;top:0;z-index:20;
+    box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  header h1{font-size:19px;letter-spacing:.04em}
+  header p{font-size:11.5px;opacity:.92;margin-top:2px}
+  .wrap{max-width:560px;margin:0 auto;padding:14px 14px 0}
+  .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:14px;
+    box-shadow:0 1px 4px rgba(60,55,40,.07)}
+  /* ---- controls ---- */
+  .ctrl-row{display:flex;gap:10px}
+  .ctrl{flex:1;background:var(--green-l);border-radius:12px;padding:10px 12px;text-align:center}
+  .ctrl label{font-size:12px;color:var(--green-d);font-weight:700;display:block}
+  .stepper{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px}
+  .stepper button{width:38px;height:38px;border:none;border-radius:50%;background:#fff;
+    color:var(--green-d);font-size:22px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.12);
+    cursor:pointer;line-height:1}
+  .stepper button:active{transform:scale(.92)}
+  .stepper .val{font-size:22px;font-weight:800;min-width:52px;color:var(--ink)}
+  .stepper .val small{font-size:12px;font-weight:600;color:var(--sub)}
+  .gen-btn{width:100%;margin-top:12px;padding:15px;border:none;border-radius:14px;
+    background:linear-gradient(135deg,#ffa726,#f57c00);color:#fff;font-size:17px;font-weight:800;
+    letter-spacing:.06em;box-shadow:0 3px 10px rgba(245,124,0,.35);cursor:pointer}
+  .gen-btn:active{transform:scale(.98)}
+  /* ---- tabs ---- */
+  nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
+    display:flex;z-index:30;padding-bottom:env(safe-area-inset-bottom)}
+  nav button{flex:1;border:none;background:none;padding:10px 0 8px;font-size:11px;color:var(--sub);
+    cursor:pointer;font-weight:600}
+  nav button .ico{display:block;font-size:22px;margin-bottom:1px}
+  nav button.on{color:var(--green-d)}
+  nav button .badge{position:relative}
+  nav button .badge em{position:absolute;top:-4px;right:-14px;background:var(--red);color:#fff;
+    font-size:10px;font-style:normal;border-radius:9px;padding:1px 5px;font-weight:700}
+  .page{display:none}.page.on{display:block}
+  /* ---- day cards ---- */
+  .day-card{position:relative}
+  .day-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .day-num{background:var(--green);color:#fff;font-weight:800;font-size:12px;border-radius:8px;
+    padding:3px 9px;letter-spacing:.05em}
+  .ptag{font-size:11px;font-weight:700;border-radius:8px;padding:3px 8px;background:#fff3e0;color:#e65100}
+  .balance{margin-left:auto;font-size:12px;font-weight:800;border-radius:10px;padding:3px 10px}
+  .b2{background:#e8f5e9;color:#2e7d32}.b1{background:#fff8e1;color:#ef6c00}.b0{background:#ffebee;color:#c62828}
+  .menu-main{font-size:16.5px;font-weight:800;line-height:1.4}
+  .menu-side{font-size:13.5px;color:var(--sub);margin-top:2px}
+  .nutri{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{font-size:11px;background:var(--bg);border-radius:8px;padding:3px 8px;color:#5d5a52}
+  .chip b{color:var(--ink)}
+  .ing-toggle{margin-top:10px;font-size:12.5px;color:var(--green-d);font-weight:700;
+    background:none;border:none;cursor:pointer;padding:0}
+  .ing-list{display:none;margin-top:8px;font-size:13px;color:#5d5a52;background:var(--green-l);
+    border-radius:10px;padding:10px 12px}
+  .ing-list.on{display:block}
+  .ing-list li{list-style:none;display:flex;justify-content:space-between;padding:2px 0}
+  .ing-list .ssn{margin-top:6px;font-size:12px;color:var(--sub)}
+  .ttag{font-size:11px;font-weight:700;border-radius:8px;padding:3px 8px;background:#e3f2fd;color:#1565c0}
+  .steps-title{font-size:12.5px;font-weight:800;color:var(--green-d);margin:10px 0 4px;
+    padding-top:8px;border-top:1px dashed #cddcb8}
+  .steps{counter-reset:stp}
+  .steps li{list-style:none;display:flex;justify-content:flex-start;align-items:flex-start;gap:7px;padding:4px 0;font-size:12.5px;line-height:1.5}
+  .steps li::before{counter-increment:stp;content:counter(stp);flex:none;width:18px;height:18px;
+    border-radius:50%;background:#fff;border:1.5px solid var(--green);color:var(--green-d);
+    font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:2px}
+  .stag{flex:none;font-size:10px;font-weight:800;border-radius:6px;padding:1px 6px;margin-top:2.5px}
+  .stag-p{background:#eceae3;color:#6d6a60}
+  .stag-s{background:#e8f5e9;color:#2e7d32}
+  .stag-m{background:#fff3e0;color:#e65100}
+  .stag-f{background:#e3f2fd;color:#1565c0}
+  .swap{position:absolute;top:14px;right:14px;border:1px solid var(--line);background:#fff;
+    border-radius:10px;font-size:12px;padding:6px 10px;color:var(--green-d);font-weight:700;cursor:pointer}
+  .swap:active{transform:rotate(180deg)}
+  /* ---- summary ---- */
+  .sum-title{font-size:14px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .pfc-bar{display:flex;height:14px;border-radius:7px;overflow:hidden;margin:8px 0 4px}
+  .pfc-bar div{height:100%}
+  .pfc-p{background:#ef5350}.pfc-f{background:#ffca28}.pfc-c{background:#66bb6a}
+  .pfc-legend{display:flex;gap:12px;font-size:11px;color:var(--sub)}
+  .pfc-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px}
+  .sum-note{font-size:12.5px;margin-top:10px;background:var(--green-l);border-radius:10px;
+    padding:10px 12px;color:#41662a}
+  /* ---- shopping ---- */
+  .shop-head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+  .shop-head h2{font-size:16px;font-weight:800}
+  .shop-head span{font-size:12px;color:var(--sub)}
+  .prog{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:8px 0 2px}
+  .prog div{height:100%;background:var(--green);transition:width .25s}
+  .cat-title{font-size:13px;font-weight:800;color:var(--green-d);margin:14px 0 4px;
+    display:flex;align-items:center;gap:6px}
+  .item{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px dashed var(--line)}
+  .item:last-child{border-bottom:none}
+  .item input{width:22px;height:22px;accent-color:var(--green);flex:none}
+  .item .nm{flex:1;font-weight:600}
+  .item .nm small{display:block;font-weight:400;font-size:11px;color:var(--sub)}
+  .item .qt{font-weight:800;color:var(--ink);text-align:right;font-size:14px}
+  .item .qt small{display:block;font-weight:400;font-size:10.5px;color:var(--sub)}
+  .item.done .nm,.item.done .qt{text-decoration:line-through;color:#bbb}
+  .home-note{font-size:12.5px;background:#fffde7;border:1px solid #fff59d;border-radius:10px;
+    padding:10px 12px;margin-top:12px;color:#795548}
+  .empty{padding:48px 16px;text-align:center;color:var(--sub);font-size:14px}
+  .empty .big{font-size:44px;margin-bottom:10px}
+  .copy-btn{width:100%;margin-top:12px;padding:12px;border:1.5px solid var(--green);border-radius:12px;
+    background:#fff;color:var(--green-d);font-weight:800;font-size:14px;cursor:pointer}
+  .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(40,40,36,.92);
+    color:#fff;font-size:13px;padding:9px 18px;border-radius:20px;opacity:0;transition:opacity .25s;
+    pointer-events:none;z-index:50;white-space:nowrap}
+  .toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>こんだてBOX</h1>
+  <p>夕食の献立を自動作成 → 買い物リストまで一気に</p>
+</header>
+
+<div class="wrap">
+  <!-- 設定 -->
+  <div class="card" id="ctrlCard">
+    <div class="ctrl-row">
+      <div class="ctrl">
+        <label>人数</label>
+        <div class="stepper">
+          <button onclick="chg('people',-1)">−</button>
+          <div class="val"><span id="vPeople">2</span><small> 人</small></div>
+          <button onclick="chg('people',1)">＋</button>
+        </div>
+      </div>
+      <div class="ctrl">
+        <label>まとめ買い</label>
+        <div class="stepper">
+          <button onclick="chg('days',-1)">−</button>
+          <div class="val"><span id="vDays">5</span><small> 食分</small></div>
+          <button onclick="chg('days',1)">＋</button>
+        </div>
+      </div>
+    </div>
+    <button class="gen-btn" onclick="generate()">献立を作成する</button>
+  </div>
+
+  <!-- 献立ページ -->
+  <div class="page on" id="pagePlan">
+    <div id="planArea">
+      <div class="empty"><div class="big">🍳</div>人数とまとめ買いの食数を選んで<br>「献立を作成する」を押してください</div>
+    </div>
+  </div>
+
+  <!-- 買い物リストページ -->
+  <div class="page" id="pageShop">
+    <div id="shopArea">
+      <div class="empty"><div class="big">🛒</div>献立を作成すると<br>買い物リストが自動でできます</div>
+    </div>
+  </div>
+</div>
+
+<nav>
+  <button class="on" id="tabPlan" onclick="showTab('Plan')"><span class="ico">📅</span>献立</button>
+  <button id="tabShop" onclick="showTab('Shop')"><span class="ico badge">🛒<em id="shopBadge" style="display:none"></em></span>買い物リスト</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================
+   食材マスタ  cat:分類 / unit:売られている単位 / per:1単位あたりg(ml)
+   unitが"g"のものはグラム売り(肉・ひき肉など)
+===================================================== */
+const ING = {
+  "玉ねぎ":{cat:"野菜",unit:"個",per:200},
+  "にんじん":{cat:"野菜",unit:"本",per:150},
+  "じゃがいも":{cat:"野菜",unit:"個",per:150},
+  "キャベツ":{cat:"野菜",unit:"個",per:1000},
+  "白菜":{cat:"野菜",unit:"個",per:1200},
+  "大根":{cat:"野菜",unit:"本",per:900},
+  "小松菜":{cat:"野菜",unit:"袋",per:200},
+  "ほうれん草":{cat:"野菜",unit:"袋",per:200},
+  "チンゲン菜":{cat:"野菜",unit:"株",per:100},
+  "ブロッコリー":{cat:"野菜",unit:"株",per:250},
+  "ピーマン":{cat:"野菜",unit:"個",per:35},
+  "パプリカ(赤)":{cat:"野菜",unit:"個",per:150},
+  "なす":{cat:"野菜",unit:"本",per:80},
+  "トマト":{cat:"野菜",unit:"個",per:150},
+  "ミニトマト":{cat:"野菜",unit:"パック",per:120},
+  "きゅうり":{cat:"野菜",unit:"本",per:100},
+  "かぼちゃ":{cat:"野菜",unit:"個",per:1200},
+  "さつまいも":{cat:"野菜",unit:"本",per:250},
+  "長ねぎ":{cat:"野菜",unit:"本",per:100},
+  "もやし":{cat:"野菜",unit:"袋",per:200},
+  "レタス":{cat:"野菜",unit:"個",per:300},
+  "ズッキーニ":{cat:"野菜",unit:"本",per:120},
+  "かぶ":{cat:"野菜",unit:"個",per:100},
+  "ごぼう":{cat:"野菜",unit:"本",per:150},
+  "オクラ":{cat:"野菜",unit:"袋",per:100},
+  "アスパラガス":{cat:"野菜",unit:"束",per:100},
+  "豆苗":{cat:"野菜",unit:"パック",per:100},
+  "にら":{cat:"野菜",unit:"束",per:100},
+  "しょうが":{cat:"野菜",unit:"かけ",per:15},
+  "にんにく":{cat:"野菜",unit:"かけ",per:10},
+  "しめじ":{cat:"きのこ・海藻",unit:"パック",per:100},
+  "えのき":{cat:"きのこ・海藻",unit:"袋",per:100},
+  "しいたけ":{cat:"きのこ・海藻",unit:"パック",per:100},
+  "エリンギ":{cat:"きのこ・海藻",unit:"パック",per:100},
+  "まいたけ":{cat:"きのこ・海藻",unit:"パック",per:100},
+  "乾燥わかめ":{cat:"きのこ・海藻",unit:"袋",per:40},
+  "乾燥ひじき":{cat:"きのこ・海藻",unit:"袋",per:30},
+  "鶏もも肉":{cat:"肉・魚",unit:"g",per:1},
+  "鶏むね肉":{cat:"肉・魚",unit:"g",per:1},
+  "鶏ささみ":{cat:"肉・魚",unit:"本",per:50},
+  "豚こま切れ肉":{cat:"肉・魚",unit:"g",per:1},
+  "豚バラ薄切り肉":{cat:"肉・魚",unit:"g",per:1},
+  "豚ロース肉(生姜焼き用)":{cat:"肉・魚",unit:"g",per:1},
+  "牛切り落とし肉":{cat:"肉・魚",unit:"g",per:1},
+  "合いびき肉":{cat:"肉・魚",unit:"g",per:1},
+  "豚ひき肉":{cat:"肉・魚",unit:"g",per:1},
+  "鶏ひき肉":{cat:"肉・魚",unit:"g",per:1},
+  "生鮭":{cat:"肉・魚",unit:"切れ",per:80},
+  "さば":{cat:"肉・魚",unit:"切れ",per:100},
+  "ぶり":{cat:"肉・魚",unit:"切れ",per:80},
+  "生たら":{cat:"肉・魚",unit:"切れ",per:80},
+  "むきえび":{cat:"肉・魚",unit:"g",per:1},
+  "ベーコン":{cat:"肉・魚",unit:"パック",per:40},
+  "卵":{cat:"卵・豆腐・乳",unit:"個",per:50},
+  "絹豆腐":{cat:"卵・豆腐・乳",unit:"丁",per:300},
+  "木綿豆腐":{cat:"卵・豆腐・乳",unit:"丁",per:300},
+  "厚揚げ":{cat:"卵・豆腐・乳",unit:"枚",per:150},
+  "油揚げ":{cat:"卵・豆腐・乳",unit:"枚",per:30},
+  "ピザ用チーズ":{cat:"卵・豆腐・乳",unit:"g",per:1},
+  "牛乳":{cat:"卵・豆腐・乳",unit:"ml",per:1},
+  "春雨":{cat:"その他",unit:"g",per:1},
+  "ツナ缶":{cat:"その他",unit:"缶",per:70},
+  "カットトマト缶":{cat:"その他",unit:"缶",per:400},
+  "コーン缶":{cat:"その他",unit:"缶",per:100},
+  "白菜キムチ":{cat:"その他",unit:"g",per:1},
+  "梅干し":{cat:"その他",unit:"個",per:10},
+};
+
+/* =====================================================
+   レシピ集(夕食セット=主菜+副菜)
+   ing: [食材名, 1人前g] / ssn: 使う調味料 / n: 1人前栄養(ごはん抜き)
+   n = [kcal, たんぱく質g, 脂質g, 炭水化物g, 塩分g, 野菜量g]
+===================================================== */
+const RECIPES = [
+ {main:"鶏もも肉の照り焼き",side:"小松菜とえのきのおひたし",protein:"鶏肉",
+  ing:[["鶏もも肉",110],["長ねぎ",30],["小松菜",70],["えのき",30]],
+  ssn:["しょうゆ","みりん","砂糖","サラダ油","かつお節"],n:[430,27,26,13,2.2,130],t:20,st:["【準備】長ねぎは斜め切り、小松菜は4cm幅、えのきは石づきを落としてほぐす(野菜を先に全部切る)", "【副菜】湯を沸かし、小松菜とえのきをさっと茹でてざるに上げる", "【主菜】野菜のあとに鶏もも肉を一口大に切る(この順ならまな板はそのままでOK)", "【主菜】フライパンに油を熱し、鶏肉を皮目から中火で4〜5分焼く", "【副菜】焼いている間に副菜の水気を絞り、しょうゆ少々とかつお節で和えて完成", "【主菜】鶏肉を返して長ねぎを加え、しょうゆ・みりん・砂糖各大1を絡めて照りが出たら完成"]},
+ {main:"豚の生姜焼き",side:"キャベツとミニトマトの千切りサラダ",protein:"豚肉",
+  ing:[["豚ロース肉(生姜焼き用)",110],["玉ねぎ",50],["キャベツ",80],["ミニトマト",30],["しょうが",8]],
+  ssn:["しょうゆ","みりん","酒","サラダ油","マヨネーズ"],n:[470,24,30,16,2.3,160],t:15,st:["【準備】キャベツは千切り、玉ねぎは薄切り、ミニトマトは半分に切り、しょうがをすりおろす", "【副菜】キャベツとミニトマトを皿に盛って冷蔵庫へ(マヨネーズは食べる直前)", "【主菜】しょうゆ・みりん・酒各大1+おろししょうがを混ぜてタレを作る(肉は切らずそのまま使える)", "【主菜】フライパンに油を熱し、玉ねぎと豚肉を中火で焼く", "【主菜】肉の色が変わったらタレを加えて煮絡める", "【仕上げ】サラダと一緒に盛り付けて完成"]},
+ {main:"鮭のムニエル レモンバター",side:"ブロッコリーとコーンのソテー",protein:"魚",
+  ing:[["生鮭",90],["ブロッコリー",80],["コーン缶",25],["じゃがいも",60]],
+  ssn:["バター","小麦粉","塩","こしょう"],n:[400,25,20,24,1.6,105],t:20,st:["【準備】ブロッコリーは小房に分け、じゃがいもは1cm角に切る", "【副菜】じゃがいもとブロッコリーを耐熱容器に入れ、ラップして600Wで4分", "【主菜】鮭に塩こしょうを振り、小麦粉を薄くまぶす(切り身なので包丁いらず)", "【主菜】フライパンにバターを溶かし、鮭を中火で両面3分ずつ焼いて取り出す", "【副菜】同じフライパンでレンチン野菜とコーンを炒め、塩こしょうで味付け", "【仕上げ】鮭に焼き汁とお好みでレモンをかけて完成"]},
+ {main:"麻婆豆腐",side:"豆苗ともやしのナムル",protein:"ひき肉",
+  ing:[["木綿豆腐",150],["豚ひき肉",60],["長ねぎ",30],["豆苗",40],["もやし",60],["にんにく",5],["しょうが",5]],
+  ssn:["味噌","豆板醤","しょうゆ","ごま油","鶏ガラスープの素","片栗粉"],n:[420,25,27,15,2.6,140],t:20,st:["【準備】長ねぎ・にんにく・しょうがをみじん切り、豆苗は3cm幅、豆腐は2cm角に切る(ひき肉は切る作業なし)", "【副菜】耐熱容器にもやしと豆苗を入れ600Wで2分→ごま油・鶏ガラ・しょうゆ少々で和えてナムル完成", "【主菜】フライパンでひき肉を炒め、にんにく・しょうが・豆板醤・味噌を加えて香りを出す", "【主菜】水150ml+鶏ガラ+しょうゆを入れ、豆腐を加えて3分煮る", "【仕上げ】水溶き片栗粉でとろみをつけ、長ねぎとごま油を回しかけて完成"]},
+ {main:"肉じゃが",side:"きゅうりとわかめの酢の物",protein:"牛肉",
+  ing:[["牛切り落とし肉",70],["じゃがいも",120],["玉ねぎ",60],["にんじん",40],["きゅうり",40],["乾燥わかめ",2]],
+  ssn:["しょうゆ","みりん","砂糖","酒","酢"],n:[440,18,18,46,2.4,145],t:30,st:["【準備】じゃがいも・にんじんは乱切り、玉ねぎはくし切り、きゅうりは薄切り、わかめは水で戻す", "【副菜】きゅうりに塩少々をふってもみ、しんなりさせておく", "【主菜】鍋に油を熱し牛肉を炒め(切らずに使える)、野菜を加えてさっと炒める", "【主菜】水200ml+しょうゆ・みりん・砂糖・酒を加え、落としぶたをして15分煮る", "【副菜】煮ている間に、きゅうりを絞ってわかめと合わせ、酢・砂糖・しょうゆで和えて完成", "【仕上げ】煮汁が少なくなったら火を止め、少し置いて味を含ませて完成"]},
+ {main:"さばの味噌煮",side:"ほうれん草の白和え",protein:"魚",
+  ing:[["さば",100],["長ねぎ",30],["しょうが",8],["ほうれん草",60],["絹豆腐",50]],
+  ssn:["味噌","砂糖","みりん","酒","すりごま","しょうゆ"],n:[480,28,30,18,2.5,100],t:25,st:["【準備】長ねぎはぶつ切り、しょうがは薄切り、ほうれん草は4cm幅に切り、豆腐はペーパーで水切り", "【副菜】湯を沸かしほうれん草を1分茹で、水にとって絞る", "【主菜】さばに熱湯を回しかけて臭みを取る(切り身なので包丁不要)", "【主菜】フライパンに水150ml・味噌・砂糖・みりん・酒・しょうがを煮立て、さばと長ねぎを入れ落としぶたで10分煮る", "【副菜】その間に豆腐をつぶしてすりごま・しょうゆ・砂糖と混ぜ、ほうれん草を和えて白和え完成", "【仕上げ】煮汁にとろみが付いたら完成"]},
+ {main:"鶏むね肉とブロッコリーのオイスター炒め",side:"トマトの中華風冷やっこ",protein:"鶏肉",
+  ing:[["鶏むね肉",110],["ブロッコリー",80],["パプリカ(赤)",40],["絹豆腐",75],["トマト",50]],
+  ssn:["オイスターソース","しょうゆ","酒","片栗粉","ごま油"],n:[390,33,15,18,2.2,170],t:20,st:["【準備】ブロッコリーは小房、パプリカは細切り、トマトは角切りに切る", "【副菜】豆腐を皿にのせてトマトをのせ、ごま油・しょうゆ少々をかけて冷蔵庫へ(冷やっこ完成)", "【主菜】野菜のあとに鶏むね肉をそぎ切りにし、酒と片栗粉をもみ込む", "【主菜】ブロッコリーを耐熱容器で600Wで2分チンしておく", "【主菜】フライパンで鶏肉を焼き、色が変わったらブロッコリーとパプリカを加える", "【仕上げ】オイスターソース・しょうゆ・酒を絡めて完成"]},
+ {main:"豚こまと厚揚げの回鍋肉風",side:"中華風たまごスープ",protein:"豚肉",
+  ing:[["豚こま切れ肉",80],["厚揚げ",75],["キャベツ",100],["ピーマン",35],["卵",25],["長ねぎ",20]],
+  ssn:["味噌","豆板醤","しょうゆ","砂糖","ごま油","鶏ガラスープの素"],n:[480,27,31,17,2.7,155],t:20,st:["【準備】キャベツはざく切り、ピーマンは乱切り、長ねぎは小口切り、厚揚げは一口大に切る", "【副菜】小鍋に水300ml+鶏ガラを入れて沸かし始める", "【主菜】味噌・豆板醤・砂糖・しょうゆを混ぜてタレを作る(豚こまは切らずそのまま)", "【主菜】フライパンで豚肉→キャベツ・ピーマン・厚揚げの順に炒める", "【副菜】沸いたスープに溶き卵を回し入れ、長ねぎとごま油を加えてスープ完成", "【仕上げ】炒め物にタレを絡めて完成"]},
+ {main:"ハンバーグ きのこソース",side:"にんじんグラッセ・ゆでアスパラ添え",protein:"ひき肉",
+  ing:[["合いびき肉",110],["玉ねぎ",50],["卵",15],["しめじ",40],["にんじん",40],["アスパラガス",30]],
+  ssn:["パン粉","ケチャップ","中濃ソース","バター","塩","こしょう"],n:[510,26,33,22,2.3,160],t:30,st:["【準備】玉ねぎはみじん切り、にんじんは輪切り、アスパラは3等分、しめじはほぐす", "【副菜】小鍋ににんじん・かぶる位の水・砂糖・バターを入れて10分煮る(最後の2分でアスパラも入れる)", "【主菜】ひき肉・玉ねぎ・卵・パン粉・塩こしょうをこね、小判形にまとめる(ひき肉は包丁いらず)", "【主菜】フライパンで両面に焼き色をつけ、ふたをして弱火6分蒸し焼き", "【主菜】ハンバーグを取り出し、同じフライパンでしめじを炒めてケチャップ+中濃ソース+水50mlでソースに", "【仕上げ】ソースをかけ、にんじんとアスパラを添えて完成"]},
+ {main:"ぶりの照り焼き",side:"かぶの和風サラダ",protein:"魚",
+  ing:[["ぶり",90],["かぶ",70],["かぶの葉…かぶに含む",0],["ミニトマト",30]],
+  ssn:["しょうゆ","みりん","砂糖","酒","ごま油","酢"],n:[450,24,28,14,2.0,100],t:20,st:["【準備】かぶは薄いくし切り(葉は小口切り)、ミニトマトは半分に切る", "【副菜】かぶに塩少々をふってしんなりさせ、酢・ごま油・しょうゆで和えてミニトマトと盛る", "【主菜】ぶりは切り身のまま、ペーパーで水気を拭く(包丁不要)", "【主菜】フライパンに油を熱し、ぶりを中火で両面2分ずつ焼く", "【仕上げ】しょうゆ・みりん・砂糖・酒各大1を加え、スプーンでかけながら照りを出して完成"]},
+ {main:"鶏団子と白菜の春雨スープ煮",side:"オクラの梅おかか和え",protein:"鶏肉",
+  ing:[["鶏ひき肉",90],["白菜",120],["春雨",15],["長ねぎ",20],["オクラ",40],["梅干し",8],["しょうが",5]],
+  ssn:["鶏ガラスープの素","しょうゆ","酒","ごま油","かつお節"],n:[380,24,16,28,2.6,180],t:25,st:["【準備】白菜はそぎ切り、長ねぎはみじん切り、オクラは塩でこすって小口切り、しょうがをすりおろす", "【副菜】オクラを600Wで1分チンし、たたいた梅干しとかつお節で和えて完成", "【主菜】鶏ひき肉に長ねぎ・しょうが・酒を混ぜて団子のタネを作る(包丁いらず)", "【主菜】鍋に水500ml+鶏ガラを沸かし、タネをスプーンで落とし入れる", "【主菜】アクを取り、白菜と春雨を加えて5分煮る", "【仕上げ】しょうゆで味を調え、ごま油を垂らして完成"]},
+ {main:"えびと卵のチリソース炒め",side:"レタスときゅうりのサラダ",protein:"えび",
+  ing:[["むきえび",80],["卵",50],["長ねぎ",30],["レタス",60],["きゅうり",40],["にんにく",5],["しょうが",5]],
+  ssn:["ケチャップ","豆板醤","砂糖","鶏ガラスープの素","片栗粉","サラダ油"],n:[400,24,20,21,2.4,135],t:20,st:["【準備】長ねぎ・にんにく・しょうがをみじん切り、レタスはちぎり、きゅうりは薄切り", "【副菜】レタスときゅうりを皿に盛ってサラダ完成(ドレッシングはお好みで)", "【主菜】野菜のあとにえびの背わたを取り、片栗粉をもみ込んで洗い、水気を拭く", "【主菜】フライパンで卵をふんわり炒めて取り出す", "【主菜】えびと香味野菜を炒め、ケチャップ・豆板醤・砂糖・鶏ガラ+水50mlを加える", "【仕上げ】卵を戻し、水溶き片栗粉でとろみをつけて完成"]},
+ {main:"豚バラ大根",side:"小松菜と油揚げの煮びたし",protein:"豚肉",
+  ing:[["豚バラ薄切り肉",80],["大根",150],["小松菜",70],["油揚げ",15],["しょうが",8]],
+  ssn:["しょうゆ","みりん","砂糖","酒","和風だしの素"],n:[480,18,35,18,2.5,220],t:30,st:["【準備】大根は1cm厚のいちょう切り、小松菜は4cm幅、油揚げは短冊、しょうがは千切り", "【主菜】大根を耐熱容器で600Wで5分チン(下茹で時短)", "【主菜】野菜のあとに豚バラを5cm幅に切る", "【主菜】鍋で豚バラとしょうがを炒め、大根・水200ml・しょうゆ・みりん・砂糖・酒を加えて15分煮る", "【副菜】その間に小鍋でだし+しょうゆ+みりんを沸かし、小松菜と油揚げを3分煮て煮びたし完成", "【仕上げ】大根に味がしみたら完成"]},
+ {main:"たらと野菜のホイル蒸し",side:"かぼちゃの甘煮",protein:"魚",
+  ing:[["生たら",90],["玉ねぎ",40],["にんじん",20],["しめじ",40],["かぼちゃ",90]],
+  ssn:["バター","しょうゆ","酒","みりん","塩"],n:[350,22,9,40,1.8,190],t:25,st:["【準備】玉ねぎは薄切り、にんじんは細切り、しめじはほぐし、かぼちゃは2cm角に切る", "【副菜】小鍋にかぼちゃ・ひたひたの水・砂糖・しょうゆ少々を入れて10分煮る", "【主菜】アルミホイルに玉ねぎ→たら(切り身のまま)→にんじん・しめじをのせ、酒とバターを落として包む", "【主菜】フライパンに包みを並べて水50mlを注ぎ、ふたをして中火10分蒸し焼き", "【副菜】かぼちゃが柔らかくなったら火を止めて味を含ませる", "【仕上げ】ホイルを開け、しょうゆを垂らして完成"]},
+ {main:"鶏もも肉のトマト煮込み",side:"ズッキーニのチーズ焼き",protein:"鶏肉",
+  ing:[["鶏もも肉",110],["玉ねぎ",60],["カットトマト缶",100],["ズッキーニ",60],["ピザ用チーズ",15],["にんにく",5]],
+  ssn:["オリーブオイル","コンソメ","塩","こしょう"],n:[470,29,28,17,2.0,220],t:30,st:["【準備】玉ねぎは薄切り、ズッキーニは輪切り、にんにくはみじん切り", "【副菜】ズッキーニを耐熱皿に並べ、塩こしょう+チーズをのせて準備しておく", "【主菜】野菜のあとに鶏もも肉を大きめの一口大に切り、塩こしょうする", "【主菜】鍋でにんにく・玉ねぎを炒め、鶏肉を焼き、トマト缶+コンソメ+水100mlで15分煮込む", "【副菜】煮込み中にズッキーニをトースターで7〜8分焼く(チーズに焼き色がつくまで)", "【仕上げ】煮込みを塩こしょうで調えて完成"]},
+ {main:"牛肉とごぼうのしぐれ煮",side:"豆腐とわかめの味噌汁",protein:"牛肉",
+  ing:[["牛切り落とし肉",80],["ごぼう",50],["しょうが",8],["絹豆腐",75],["乾燥わかめ",2],["長ねぎ",15]],
+  ssn:["しょうゆ","砂糖","みりん","酒","味噌","和風だしの素"],n:[440,21,24,26,2.7,75],t:25,st:["【準備】ごぼうはささがきにして水にさらす、しょうがは千切り、長ねぎは小口切り、豆腐はさいの目、わかめは戻す", "【副菜】小鍋に水400ml+和風だしを入れて沸かし始める", "【主菜】フライパンで牛肉(切らずに使える)としょうが・ごぼうを炒める", "【主菜】しょうゆ・砂糖・みりん・酒各大1を加え、汁気がなくなるまで5〜6分煮る", "【副菜】沸いたら豆腐とわかめを入れ、火を止めて味噌を溶き、長ねぎを散らして味噌汁完成", "【仕上げ】しぐれ煮の汁気が飛んだら完成"]},
+ {main:"豚キムチ炒め",side:"チンゲン菜の中華スープ",protein:"豚肉",
+  ing:[["豚こま切れ肉",90],["白菜キムチ",60],["もやし",80],["にら",30],["チンゲン菜",50]],
+  ssn:["しょうゆ","ごま油","鶏ガラスープの素","酒"],n:[420,22,26,16,2.8,200],t:15,st:["【準備】にらは4cm幅、チンゲン菜はざく切り(もやしは洗うだけ)", "【副菜】小鍋に水300ml+鶏ガラを沸かし、チンゲン菜を2分煮て、ごま油としょうゆ少々でスープ完成", "【主菜】フライパンに油を熱し、豚こまを炒める(切らずそのまま)", "【主菜】色が変わったらキムチを加えて炒め、もやしとにらを入れる", "【仕上げ】しょうゆ少々とごま油で味を調えて完成"]},
+ {main:"鶏むね肉のチキン南蛮風",side:"せん切りキャベツ・タルタルソース",protein:"鶏肉",
+  ing:[["鶏むね肉",110],["卵",40],["キャベツ",70],["きゅうり",30],["玉ねぎ",20]],
+  ssn:["しょうゆ","酢","砂糖","マヨネーズ","小麦粉","サラダ油"],n:[520,33,30,24,2.2,120],t:25,st:["【準備】キャベツは千切り、きゅうりと玉ねぎはみじん切り(タルタル用)", "【副菜】ゆで卵を作り(沸騰から9分)、刻んで玉ねぎ・きゅうり・マヨネーズと混ぜてタルタル完成", "【主菜】野菜のあとに鶏むね肉をそぎ切りにし、塩こしょう+小麦粉→溶き卵にくぐらせる", "【主菜】多めの油で両面をこんがり焼く", "【主菜】しょうゆ・酢・砂糖各大1を混ぜた甘酢を回しかけて絡める", "【仕上げ】キャベツとタルタルを添えて完成"]},
+ {main:"麻婆なす",side:"きゅうりの中華風たたき",protein:"ひき肉",
+  ing:[["豚ひき肉",70],["なす",120],["長ねぎ",25],["きゅうり",60],["にんにく",5],["しょうが",5]],
+  ssn:["味噌","豆板醤","しょうゆ","砂糖","ごま油","片栗粉"],n:[430,18,29,21,2.5,205],t:20,st:["【準備】なすは乱切りにして水にさらす、長ねぎ・にんにく・しょうがはみじん切り、きゅうりはたたいて乱切り", "【副菜】きゅうりをごま油・しょうゆ・酢で和えて冷蔵庫へ(お好みでラー油)", "【主菜】なすを600Wで3分チン(油吸い防止&時短)", "【主菜】フライパンでひき肉と香味野菜・豆板醤・味噌を炒める(ひき肉は包丁いらず)", "【主菜】なすと水100ml+しょうゆ・砂糖を加えて2分煮る", "【仕上げ】水溶き片栗粉でとろみをつけ、長ねぎを散らして完成"]},
+ {main:"鮭ときのこのバター醤油炒め",side:"さつまいものレモン煮",protein:"魚",
+  ing:[["生鮭",90],["しめじ",50],["まいたけ",40],["玉ねぎ",40],["さつまいも",80]],
+  ssn:["バター","しょうゆ","酒","砂糖","レモン汁"],n:[440,24,16,46,1.9,80],t:25,st:["【準備】さつまいもは1cm輪切りで水にさらす、玉ねぎは薄切り、きのこはほぐす", "【副菜】小鍋にさつまいも・かぶる位の水・砂糖・レモン汁を入れて12分煮る", "【主菜】野菜のあとに鮭をひと口大に切る", "【主菜】フライパンにバターを溶かして鮭を両面焼き、玉ねぎときのこを加えて炒める", "【仕上げ】しょうゆ・酒を回しかけて完成(さつまいもは柔らかくなったらOK)"]},
+ {main:"厚揚げと豚ひき肉のピリ辛味噌炒め",side:"トマトと卵の中華炒め",protein:"豆腐・卵",
+  ing:[["厚揚げ",100],["豚ひき肉",50],["ピーマン",35],["トマト",100],["卵",50],["長ねぎ",15]],
+  ssn:["味噌","豆板醤","砂糖","しょうゆ","ごま油","鶏ガラスープの素"],n:[490,28,33,16,2.4,150],t:20,st:["【準備】ピーマンは乱切り、トマトはくし切り、長ねぎは小口切り、厚揚げは一口大に切る", "【副菜】フライパンで溶き卵を半熟に炒めて取り出し、トマトをさっと炒めて卵を戻し、鶏ガラ+塩で味付け(副菜完成)", "【主菜】フライパンをさっと拭き、ひき肉を炒めて味噌・豆板醤・砂糖を加える(ひき肉は包丁いらず)", "【主菜】厚揚げとピーマンを加えて炒め合わせる", "【仕上げ】しょうゆで味を調え、長ねぎを散らして完成"]},
+ {main:"鶏ささみの梅しそ焼き風",side:"ひじきの煮物",protein:"鶏肉",
+  ing:[["鶏ささみ",100],["梅干し",8],["乾燥ひじき",5],["にんじん",25],["油揚げ",10],["えのき",30]],
+  ssn:["しょうゆ","みりん","砂糖","酒","サラダ油"],n:[330,28,9,22,2.5,55],t:25,st:["【準備】にんじんは細切り、えのきは長さ半分、油揚げは短冊、ひじきは水で戻す", "【副菜】小鍋に油を熱してひじき・にんじん・油揚げ・えのきを炒め、水100ml+しょうゆ・みりん・砂糖で10分煮る", "【主菜】野菜のあとにささみの筋を取り、開いて、たたいた梅干しをぬる", "【主菜】フライパンに油を熱し、ささみを両面3分ずつ焼く", "【仕上げ】しょうゆ・みりんを軽く絡めて完成(ひじきは汁気が減ったらOK)"]},
+ {main:"牛肉とピーマンの青椒肉絲",side:"春雨の中華サラダ",protein:"牛肉",
+  ing:[["牛切り落とし肉",90],["ピーマン",70],["エリンギ",40],["春雨",12],["きゅうり",30],["にんじん",15]],
+  ssn:["オイスターソース","しょうゆ","酒","片栗粉","ごま油","酢","砂糖"],n:[460,21,26,30,2.6,155],t:20,st:["【準備】ピーマン・にんじん・エリンギは細切り、きゅうりは千切り、春雨は熱湯で戻す", "【副菜】戻した春雨ときゅうり・にんじん少々を、酢・しょうゆ・砂糖・ごま油で和えて中華サラダ完成", "【主菜】牛肉に酒と片栗粉をもみ込む(切り落としは切らずそのまま)", "【主菜】フライパンで牛肉を炒め、ピーマンとエリンギを加える", "【仕上げ】オイスターソース・しょうゆ・酒を絡めて完成"]},
+ {main:"豆腐ハンバーグ きのこあん",side:"ほうれん草のごま和え",protein:"豆腐・卵",
+  ing:[["木綿豆腐",100],["鶏ひき肉",70],["玉ねぎ",40],["卵",15],["しいたけ",30],["えのき",30],["ほうれん草",60]],
+  ssn:["パン粉","しょうゆ","みりん","片栗粉","すりごま","砂糖"],n:[400,26,20,24,2.3,130],t:30,st:["【準備】玉ねぎはみじん切り、しいたけは薄切り・えのきはほぐす、ほうれん草は4cm幅に切る", "【副菜】ほうれん草を茹でて絞り、すりごま・砂糖・しょうゆで和えてごま和え完成", "【主菜】水切りした豆腐・鶏ひき肉・玉ねぎ・卵・パン粉をこねて小判形に(ひき肉は包丁いらず)", "【主菜】フライパンで両面を焼き、ふたをして弱火5分蒸し焼き", "【主菜】同じフライパンできのこ+水100ml+しょうゆ・みりんを煮て、水溶き片栗粉であんに", "【仕上げ】ハンバーグにあんをかけて完成"]},
+ {main:"八宝菜",side:"もやしとわかめの中華和え",protein:"豚肉",
+  ing:[["豚こま切れ肉",60],["むきえび",30],["白菜",100],["にんじん",25],["しいたけ",20],["うずらの卵…卵で代用",0],["卵",25],["もやし",60],["乾燥わかめ",2]],
+  ssn:["オイスターソース","鶏ガラスープの素","しょうゆ","片栗粉","ごま油","酢"],n:[410,25,21,22,2.7,210],t:25,st:["【準備】白菜はそぎ切り、にんじんは短冊、しいたけは薄切り(もやしは洗う、わかめは戻す)", "【副菜】もやしを600Wで2分チンし、わかめと酢・しょうゆ・ごま油で和えて完成", "【主菜】野菜のあとにえびの背わたを取り、豚こまと合わせて酒をふる", "【主菜】フライパンで豚肉とえびを炒め、にんじん・しいたけ・白菜を加える", "【主菜】水100ml+オイスターソース+鶏ガラ+しょうゆで2分煮て、溶き卵を回し入れる", "【仕上げ】水溶き片栗粉でとろみをつけ、ごま油で香り付けして完成"]},
+];
+
+/* =====================================================
+   献立生成ロジック
+===================================================== */
+function pickPlan(days, prevPlan){
+  const pool=[...RECIPES.keys()];
+  // シャッフル
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const plan=[];
+  const protCount={};
+  for(let d=0;d<days;d++){
+    let best=-1,bestScore=-1e9;
+    for(const idx of pool){
+      if(plan.includes(idx))continue;
+      const r=RECIPES[idx];
+      let s=Math.random()*2;
+      // 直前と同じたんぱく源は避ける
+      if(plan.length&&RECIPES[plan[plan.length-1]].protein===r.protein)s-=20;
+      // 同じたんぱく源の回数が偏らないように
+      s-=(protCount[r.protein]||0)*6;
+      // 期間内に魚を入れるボーナス
+      if(days>=4&&r.protein==="魚"&&!(protCount["魚"]))s+=4;
+      // 食材の使い回し(まとめ買いのムダ削減)ボーナス
+      const used=new Set();plan.forEach(p=>RECIPES[p].ing.forEach(([n,g])=>{if(g>0)used.add(n);}));
+      r.ing.forEach(([n,g])=>{const m=ING[n];if(g>0&&m&&m.unit!=="g"&&m.unit!=="ml"&&used.has(n))s+=2;});
+      // 野菜が少ない週にならないように
+      if(r.n[5]>=150)s+=1.5;
+      if(s>bestScore){bestScore=s;best=idx;}
+    }
+    plan.push(best);
+    protCount[RECIPES[best].protein]=(protCount[RECIPES[best].protein]||0)+1;
+  }
+  return plan;
+}
+
+function swapDay(plan, dayIdx){
+  const cur=plan[dayIdx];
+  const cand=[...RECIPES.keys()].filter(i=>!plan.includes(i));
+  const prev=dayIdx>0?RECIPES[plan[dayIdx-1]].protein:null;
+  const next=dayIdx<plan.length-1?RECIPES[plan[dayIdx+1]].protein:null;
+  let good=cand.filter(i=>RECIPES[i].protein!==prev&&RECIPES[i].protein!==next);
+  if(!good.length)good=cand;
+  if(!good.length)return cur;
+  return good[Math.floor(Math.random()*good.length)];
+}
+
+/* ---- 栄養バランス判定(1人前・夕食・ごはん抜き) ----
+   ごはん普通盛り(約240kcal,炭水化物56g)を足す前提で判定 */
+function judgeDay(n){
+  const [kcal,p,f,c,salt,veg]=n;
+  let score=2; const notes=[];
+  if(p>=22);else if(p>=18){score=Math.min(score,1);notes.push("たんぱく質やや少なめ");}
+  else{score=0;notes.push("たんぱく質不足");}
+  if(veg>=120);else if(veg>=80){score=Math.min(score,1);notes.push("野菜をもう一品");}
+  else{score=0;notes.push("野菜不足");}
+  if(salt<=2.5);else if(salt<=3.2){score=Math.min(score,1);notes.push("塩分やや高め");}
+  else{score=0;notes.push("塩分高め");}
+  if(kcal>=330&&kcal<=560);else{score=Math.min(score,1);notes.push(kcal<330?"カロリー控えめ":"カロリー高め");}
+  return {score,notes};
+}
+const BLABEL=["△ 見直し","○ まずまず","◎ バランス良好"];
+
+function weekSummary(plan){
+  const t=[0,0,0,0,0,0];
+  plan.forEach(i=>RECIPES[i].n.forEach((v,k)=>t[k]+=v));
+  const d=plan.length;
+  const avg=t.map(v=>v/d);
+  const pe=avg[1]*4, fe=avg[2]*9, ce=avg[3]*4, tot=pe+fe+ce;
+  return {avg, pfc:[pe/tot*100, fe/tot*100, ce/tot*100]};
+}
+
+/* ---- 買い物リスト集計 ---- */
+function buildShopping(plan, people){
+  const need={}; const ssn=new Set();
+  plan.forEach(i=>{
+    RECIPES[i].ing.forEach(([name,g])=>{
+      if(g<=0)return;
+      need[name]=(need[name]||0)+g*people;
+    });
+    RECIPES[i].ssn.forEach(s=>ssn.add(s));
+  });
+  const cats={"野菜":[],"きのこ・海藻":[],"肉・魚":[],"卵・豆腐・乳":[],"その他":[]};
+  Object.entries(need).forEach(([name,g])=>{
+    const m=ING[name]; if(!m)return;
+    let qty,sub,leftover=0;
+    if(m.unit==="g"||m.unit==="ml"){
+      qty=Math.ceil(g/10)*10+m.unit; sub="";
+    }else{
+      const units=Math.ceil(g/m.per - 0.0001);
+      qty=units+m.unit;
+      sub="必要量 約"+Math.round(g)+"g";
+      leftover=units*m.per-g;
+    }
+    cats[m.cat].push({name,qty,sub,leftover,g});
+  });
+  Object.values(cats).forEach(a=>a.sort((x,y)=>y.g-x.g));
+  return {cats, ssn:[...ssn].sort()};
+}
+
+// ---- UI ----
+const state={people:2, days:5, plan:null, checked:{}, openIng:{}};
+
+function chg(key,delta){
+  const lim=key==="people"?[1,8]:[2,7];
+  state[key]=Math.min(lim[1],Math.max(lim[0],state[key]+delta));
+  document.getElementById(key==="people"?"vPeople":"vDays").textContent=state[key];
+  if(state.plan){
+    if(key==="days"){generate();}
+    else{renderShop();}
+  }
+}
+
+function generate(){
+  state.plan=pickPlan(state.days);
+  state.checked={}; state.openIng={};
+  renderPlan(); renderShop();
+  showTab("Plan");
+  toast("献立と買い物リストを作成しました");
+}
+
+function reroll(d){
+  state.plan[d]=swapDay(state.plan,d);
+  state.checked={};
+  renderPlan(); renderShop();
+  toast("DAY"+(d+1)+"を入れ替えました");
+}
+
+function toggleIng(d){
+  state.openIng[d]=!state.openIng[d];
+  document.getElementById("ing"+d).classList.toggle("on",!!state.openIng[d]);
+}
+
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+const STAG={"準備":"stag-p","副菜":"stag-s","主菜":"stag-m","仕上げ":"stag-f"};
+function stepsHtml(r){
+  return (r.st||[]).map(s=>{
+    const m=s.match(/^【(.+?)】(.*)$/);
+    const tag=m?m[1]:"", body=m?m[2]:s;
+    return `<li><span class="stag ${STAG[tag]||"stag-p"}">${esc(tag)}</span><span>${esc(body)}</span></li>`;
+  }).join("");
+}
+
+function renderPlan(){
+  const area=document.getElementById("planArea");
+  let html="";
+  state.plan.forEach((ri,d)=>{
+    const r=RECIPES[ri], j=judgeDay(r.n);
+    const ings=r.ing.filter(([n,g])=>g>0).map(([n,g])=>{
+      const m=ING[n];
+      let q=Math.round(g*state.people)+"g";
+      if(m&&m.unit!=="g"&&m.unit!=="ml"){
+        const u=g*state.people/m.per;
+        q=(Math.round(u*10)/10)+m.unit;
+      }
+      return `<li><span>${esc(n)}</span><span>${q}</span></li>`;
+    }).join("");
+    html+=`<div class="card day-card">
+      <button class="swap" onclick="reroll(${d})">↺ 入替</button>
+      <div class="day-head">
+        <span class="day-num">DAY ${d+1}</span>
+        <span class="ptag">${esc(r.protein)}</span>
+        <span class="ttag">⏱ 約${r.t}分</span>
+        <span class="balance b${j.score}">${BLABEL[j.score]}</span>
+      </div>
+      <div class="menu-main">${esc(r.main)}</div>
+      <div class="menu-side">＋ ${esc(r.side)}</div>
+      <div class="nutri">
+        <span class="chip"><b>${r.n[0]}</b> kcal</span>
+        <span class="chip">たんぱく質 <b>${r.n[1]}g</b></span>
+        <span class="chip">脂質 <b>${r.n[2]}g</b></span>
+        <span class="chip">炭水化物 <b>${r.n[3]}g</b></span>
+        <span class="chip">塩分 <b>${r.n[4]}g</b></span>
+        <span class="chip">野菜 <b>${r.n[5]}g</b></span>
+      </div>
+      ${j.notes.length?`<div class="nutri"><span class="chip" style="background:#fff8e1;color:#a06000">💡 ${esc(j.notes.join("・"))}</span></div>`:""}
+      <button class="ing-toggle" onclick="toggleIng(${d})">食材と作り方を見る(${state.people}人前) ▾</button>
+      <div class="ing-list ${state.openIng[d]?"on":""}" id="ing${d}"><ul>${ings}
+        <li class="ssn">調味料: ${esc(r.ssn.join("・"))}</li></ul>
+        <div class="steps-title">⏱ 最短手順(主菜と副菜を同時進行)</div>
+        <ol class="steps">${stepsHtml(r)}</ol>
+        <div class="ssn">💡 野菜を先にすべて切ってから肉・魚を扱う順番なので、まな板の洗い直しが最小限で済みます。</div>
+      </div>
+    </div>`;
+  });
+  // 週サマリー
+  const s=weekSummary(state.plan);
+  const a=s.avg;
+  html+=`<div class="card">
+    <div class="sum-title">📊 ${state.days}食分の平均栄養(1人前・ごはん抜き)</div>
+    <div class="nutri">
+      <span class="chip"><b>${Math.round(a[0])}</b> kcal</span>
+      <span class="chip">たんぱく質 <b>${a[1].toFixed(1)}g</b></span>
+      <span class="chip">脂質 <b>${a[2].toFixed(1)}g</b></span>
+      <span class="chip">炭水化物 <b>${a[3].toFixed(1)}g</b></span>
+      <span class="chip">塩分 <b>${a[4].toFixed(1)}g</b></span>
+      <span class="chip">野菜 <b>${Math.round(a[5])}g</b></span>
+    </div>
+    <div class="pfc-bar">
+      <div class="pfc-p" style="width:${s.pfc[0]}%"></div>
+      <div class="pfc-f" style="width:${s.pfc[1]}%"></div>
+      <div class="pfc-c" style="width:${s.pfc[2]}%"></div>
+    </div>
+    <div class="pfc-legend">
+      <span><i class="pfc-p"></i>P ${Math.round(s.pfc[0])}%</span>
+      <span><i class="pfc-f"></i>F ${Math.round(s.pfc[1])}%</span>
+      <span><i class="pfc-c"></i>C ${Math.round(s.pfc[2])}%</span>
+    </div>
+    <div class="sum-note">ごはん普通盛り(約240kcal・炭水化物56g)を足すと1食 約${Math.round(a[0]+240)}kcalです。野菜は1日350gが目標なので、夕食で${Math.round(a[5])}gとれていれば朝昼で残りを補えばOK。</div>
+  </div>`;
+  area.innerHTML=html;
+}
+
+function renderShop(){
+  if(!state.plan)return;
+  const area=document.getElementById("shopArea");
+  const {cats,ssn}=buildShopping(state.plan,state.people);
+  const allItems=Object.values(cats).flat();
+  const total=allItems.length;
+  const done=allItems.filter(it=>state.checked[it.name]).length;
+  const catIcon={"野菜":"🥬","きのこ・海藻":"🍄","肉・魚":"🍖","卵・豆腐・乳":"🥚","その他":"🥫"};
+  let html=`<div class="card">
+    <div class="shop-head"><h2>🛒 買い物リスト</h2><span>${state.people}人 × ${state.days}食分</span></div>
+    <div class="prog"><div style="width:${total?done/total*100:0}%"></div></div>
+    <div style="font-size:11.5px;color:var(--sub)">${done} / ${total} 品 完了</div>`;
+  for(const[cat,items]of Object.entries(cats)){
+    if(!items.length)continue;
+    html+=`<div class="cat-title">${catIcon[cat]} ${cat}</div>`;
+    items.forEach(it=>{
+      const ck=state.checked[it.name]?"checked":"";
+      const lf=it.leftover>=Math.max(60,it.g*0.45)?`<small>⚠️ 約${Math.round(it.leftover)}g余ります → 翌週へ</small>`:"";
+      html+=`<label class="item ${ck?"done":""}">
+        <input type="checkbox" ${ck} onchange="chk('${esc(it.name)}')">
+        <span class="nm">${esc(it.name)}${it.sub?`<small>${esc(it.sub)}</small>`:""}</span>
+        <span class="qt">${esc(it.qty)}${lf}</span>
+      </label>`;
+    });
+  }
+  html+=`<div class="home-note">🏠 <b>ご家庭でご用意ください</b><br>ごはん／${esc(ssn.join("・"))}</div>
+  <button class="copy-btn" onclick="copyList()">📋 リストをコピー(メモ・LINE共有用)</button>
+  </div>`;
+  area.innerHTML=html;
+  const badge=document.getElementById("shopBadge");
+  badge.style.display=total-done>0?"":"none";
+  badge.textContent=total-done;
+}
+
+function chk(name){
+  state.checked[name]=!state.checked[name];
+  renderShop();
+}
+
+function copyList(){
+  const {cats,ssn}=buildShopping(state.plan,state.people);
+  let txt=`【買い物リスト】${state.people}人×${state.days}食分\n`;
+  for(const[cat,items]of Object.entries(cats)){
+    if(!items.length)continue;
+    txt+=`\n■${cat}\n`;
+    items.forEach(it=>{txt+=`□ ${it.name} ${it.qty}${it.sub?"("+it.sub+")":""}\n`;});
+  }
+  txt+=`\n■家にあるか確認\nごはん／${ssn.join("・")}\n`;
+  txt+=`\n【献立】\n`;
+  state.plan.forEach((ri,d)=>{txt+=`DAY${d+1}: ${RECIPES[ri].main} + ${RECIPES[ri].side}\n`;});
+  navigator.clipboard.writeText(txt).then(()=>toast("コピーしました")).catch(()=>{
+    const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);
+    ta.select();document.execCommand("copy");ta.remove();toast("コピーしました");
+  });
+}
+
+function showTab(t){
+  document.getElementById("pagePlan").classList.toggle("on",t==="Plan");
+  document.getElementById("pageShop").classList.toggle("on",t==="Shop");
+  document.getElementById("tabPlan").classList.toggle("on",t==="Plan");
+  document.getElementById("tabShop").classList.toggle("on",t==="Shop");
+  document.getElementById("ctrlCard").style.display=t==="Plan"?"":"none";
+  window.scrollTo(0,0);
+}
+
+let toastTimer;
+function toast(msg){
+  const el=document.getElementById("toast");
+  el.textContent=msg;el.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove("on"),1800);
+}
+</script>
+</body>
+</html>
